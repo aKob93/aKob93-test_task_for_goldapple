@@ -84,13 +84,8 @@ class ParserRivegauche:
         connector = aiohttp.TCPConnector(force_close=True)
         self.info_products.clear()  # очистка словаря
         async with aiohttp.ClientSession(headers={'User-Agent': self.ua.random}, connector=connector) as session:
-            tasks = []
-            for base_link in self.links_products:
-                task = asyncio.create_task(self.get_info_about_products(session, base_link))
-                tasks.append(task)
-
-            # tasks = [asyncio.create_task(self.get_info_about_products(session, base_link)) for base_link in
-            #          self.links_products]  # создание задач для асинхронного выполнения
+            tasks = [asyncio.create_task(self.get_info_about_products(session, base_link)) for base_link in
+                     self.links_products]  # создание задач для асинхронного выполнения
             await asyncio.gather(*tasks)
 
     def get_link_from_products(self, brand_code: Optional[str], category_code: Optional[str]) -> None:
