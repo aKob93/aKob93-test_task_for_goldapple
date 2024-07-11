@@ -51,7 +51,7 @@ class ParserRivegauche:
         retry_options = ExponentialRetry(attempts=5)  # параметр для повторных попыток подключения
         retry_client = RetryClient(raise_for_status=False, retry_options=retry_options, client_session=session,
                                    start_timeout=0.5)  # контекстный менеджер
-        self.info_products.clear()  # очистка словаря
+
         url = f"{self.api_url_products}{base_link.split('/')[-1]}"
         async with retry_client.get(url=url) as response:
             if response.ok:
@@ -82,9 +82,15 @@ class ParserRivegauche:
         Создает и запускает асинхронные задачи.
         """
         connector = aiohttp.TCPConnector(force_close=True)
+        self.info_products.clear()  # очистка словаря
         async with aiohttp.ClientSession(headers={'User-Agent': self.ua.random}, connector=connector) as session:
-            tasks = [asyncio.create_task(self.get_info_about_products(session, base_link)) for base_link in
-                     self.links_products]  # создание задач для асинхронного выполнения
+            tasks = []
+            for base_link in self.links_products:
+                task = asyncio.create_task(self.get_info_about_products(session, base_link))
+                tasks.append(task)
+
+            # tasks = [asyncio.create_task(self.get_info_about_products(session, base_link)) for base_link in
+            #          self.links_products]  # создание задач для асинхронного выполнения
             await asyncio.gather(*tasks)
 
     def get_link_from_products(self, brand_code: Optional[str], category_code: Optional[str]) -> None:
@@ -94,20 +100,19 @@ class ParserRivegauche:
         self.links_products.clear()
         for page in range(1000):
             self.params['currentPage'] = page
-            if brand_code:
-                self.params['brandCode'] = brand_code
-            if category_code:
-                self.params['categoryCode'] = category_code
+            self.params['brandCode'] = brand_code
+            self.params['categoryCode'] = category_code
             # отправка запроса с необходимо сформированными параметрами
             response = requests.get(self.api_url_brands, params=self.params, headers={'User-Agent': self.ua.random})
-            data_json = json.loads(response.text)
-            data_result = data_json['results']
+            data = json.loads(response.text)
+            data_result = data['results']
             if data_result:
-                for result in data_json['results']:
+                for result in data['results']:
                     result_url = f"{self.url_rivegauche}{result['url']}"
                     self.links_products.append(result_url)
             else:
                 break
+
 
     def write_file_task_first(self) -> None:
         """
